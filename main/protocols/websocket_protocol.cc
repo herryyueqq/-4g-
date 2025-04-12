@@ -33,16 +33,22 @@ void WebsocketProtocol::SendAudio(const std::vector<uint8_t>& data) {
     websocket_->Send(data.data(), data.size(), true);
 }
 
-void WebsocketProtocol::SendText(const std::string& text) {
+bool WebsocketProtocol::SendText(const std::string& text) {
     if (websocket_ == nullptr) {
-        return;
+        return false;
     }
 
-    websocket_->Send(text);
+    if (!websocket_->Send(text)) {
+        ESP_LOGE(TAG, "Failed to send text: %s", text.c_str());
+        SetError(Lang::Strings::SERVER_ERROR);
+        return false;
+    }
+
+    return true;
 }
 
 bool WebsocketProtocol::IsAudioChannelOpened() const {
-    return websocket_ != nullptr && websocket_->IsConnected();
+    return websocket_ != nullptr && websocket_->IsConnected() && !error_occurred_ && !IsTimeout();
 }
 
 void WebsocketProtocol::CloseAudioChannel() {
@@ -57,6 +63,7 @@ bool WebsocketProtocol::OpenAudioChannel() {
         delete websocket_;
     }
 
+    error_occurred_ = false;
     std::string url = CONFIG_WEBSOCKET_URL;
     std::string token = "Bearer " + std::string(CONFIG_WEBSOCKET_ACCESS_TOKEN);
     websocket_ = Board::GetInstance().CreateWebSocket();
@@ -87,6 +94,7 @@ bool WebsocketProtocol::OpenAudioChannel() {
             }
             cJSON_Delete(root);
         }
+        last_incoming_time_ = std::chrono::steady_clock::now();
     });
 
     websocket_->OnDisconnected([this]() {
@@ -98,9 +106,7 @@ bool WebsocketProtocol::OpenAudioChannel() {
 
     if (!websocket_->Connect(url.c_str())) {
         ESP_LOGE(TAG, "Failed to connect to websocket server");
-        if (on_network_error_ != nullptr) {
-            on_network_error_(Lang::Strings::SERVER_NOT_FOUND);
-        }
+        SetError(Lang::Strings::SERVER_NOT_FOUND);
         return false;
     }
 
@@ -113,15 +119,15 @@ bool WebsocketProtocol::OpenAudioChannel() {
     message += "\"audio_params\":{";
     message += "\"format\":\"opus\", \"sample_rate\":16000, \"channels\":1, \"frame_duration\":" + std::to_string(OPUS_FRAME_DURATION_MS);
     message += "}}";
-    websocket_->Send(message);
+    if (!SendText(message)) {
+        return false;
+    }
 
     // Wait for server hello
     EventBits_t bits = xEventGroupWaitBits(event_group_handle_, WEBSOCKET_PROTOCOL_SERVER_HELLO_EVENT, pdTRUE, pdFALSE, pdMS_TO_TICKS(10000));
     if (!(bits & WEBSOCKET_PROTOCOL_SERVER_HELLO_EVENT)) {
         ESP_LOGE(TAG, "Failed to receive server hello");
-        if (on_network_error_ != nullptr) {
-            on_network_error_(Lang::Strings::SERVER_TIMEOUT);
-        }
+        SetError(Lang::Strings::SERVER_TIMEOUT);
         return false;
     }
 
@@ -144,6 +150,10 @@ void WebsocketProtocol::ParseServerHello(const cJSON* root) {
         auto sample_rate = cJSON_GetObjectItem(audio_params, "sample_rate");
         if (sample_rate != NULL) {
             server_sample_rate_ = sample_rate->valueint;
+        }
+        auto frame_duration = cJSON_GetObjectItem(audio_params, "frame_duration");
+        if (frame_duration != NULL) {
+            server_frame_duration_ = frame_duration->valueint;
         }
     }
 

@@ -1,6 +1,7 @@
 import sys
 import os
 import json
+import zipfile
 
 # 切换到项目根目录
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -35,9 +36,8 @@ def zip_bin(board_type, project_version):
     output_path = f"releases/v{project_version}_{board_type}.zip"
     if os.path.exists(output_path):
         os.remove(output_path)
-    if os.system(f"zip -j {output_path} build/merged-binary.bin") != 0:
-        print("zip bin failed")
-        sys.exit(1)
+    with zipfile.ZipFile(output_path, 'w', compression=zipfile.ZIP_DEFLATED) as zipf:
+        zipf.write("build/merged-binary.bin", arcname="merged-binary.bin")
     print(f"zip bin to {output_path} done")
     
 
@@ -51,7 +51,7 @@ def release_current():
 
 def get_all_board_types():
     board_configs = {}
-    with open("main/CMakeLists.txt") as f:
+    with open("main/CMakeLists.txt", encoding='utf-8') as f:
         lines = f.readlines()
         for i, line in enumerate(lines):
             # 查找 if(CONFIG_BOARD_TYPE_*) 行
@@ -72,11 +72,7 @@ def release(board_type, board_config):
 
     # Print Project Version
     project_version = get_project_version()
-    print(f"Project Version: {project_version}")
-    release_path = f"releases/v{project_version}_{board_type}.zip"
-    if os.path.exists(release_path):
-        print(f"跳过 {board_type} 因为 {release_path} 已存在")
-        return
+    print(f"Project Version: {project_version}", config_path)
 
     with open(config_path, "r") as f:
         config = json.load(f)
@@ -86,7 +82,11 @@ def release(board_type, board_config):
     for build in builds:
         name = build["name"]
         if not name.startswith(board_type):
-            raise ValueError(f"name {name} 必须 {board_type} 开头")
+            raise ValueError(f"name {name} 必须以 {board_type} 开头")
+        output_path = f"releases/v{project_version}_{name}.zip"
+        if os.path.exists(output_path):
+            print(f"跳过 {board_type} 因为 {output_path} 已存在")
+            continue
 
         sdkconfig_append = [f"{board_config}=y"]
         for append in build.get("sdkconfig_append", []):
@@ -106,6 +106,10 @@ def release(board_type, board_config):
             f.write("\n")
             for append in sdkconfig_append:
                 f.write(f"{append}\n")
+        # Build with macro BOARD_NAME defined to name
+        if os.system(f"idf.py -DBOARD_NAME={name} build") != 0:
+            print("build failed")
+            sys.exit(1)
         # Call merge-bin
         if os.system("idf.py merge-bin") != 0:
             print("merge-bin failed")

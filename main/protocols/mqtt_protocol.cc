@@ -28,10 +28,10 @@ MqttProtocol::~MqttProtocol() {
 }
 
 void MqttProtocol::Start() {
-    StartMqttClient();
+    StartMqttClient(false);
 }
 
-bool MqttProtocol::StartMqttClient() {
+bool MqttProtocol::StartMqttClient(bool report_error) {
     if (mqtt_ != nullptr) {
         ESP_LOGW(TAG, "Mqtt client already started");
         delete mqtt_;
@@ -45,9 +45,9 @@ bool MqttProtocol::StartMqttClient() {
     publish_topic_ = settings.GetString("publish_topic");
 
     if (endpoint_.empty()) {
-        ESP_LOGE(TAG, "MQTT endpoint is not specified");
-        if (on_network_error_ != nullptr) {
-            on_network_error_(Lang::Strings::SERVER_NOT_FOUND);
+        ESP_LOGW(TAG, "MQTT endpoint is not specified");
+        if (report_error) {
+            SetError(Lang::Strings::SERVER_NOT_FOUND);
         }
         return false;
     }
@@ -76,6 +76,7 @@ bool MqttProtocol::StartMqttClient() {
             ParseServerHello(root);
         } else if (strcmp(type->valuestring, "goodbye") == 0) {
             auto session_id = cJSON_GetObjectItem(root, "session_id");
+            ESP_LOGI(TAG, "Received goodbye message, session_id: %s", session_id ? session_id->valuestring : "null");
             if (session_id == nullptr || session_id_ == session_id->valuestring) {
                 Application::GetInstance().Schedule([this]() {
                     CloseAudioChannel();
@@ -85,14 +86,13 @@ bool MqttProtocol::StartMqttClient() {
             on_incoming_json_(root);
         }
         cJSON_Delete(root);
+        last_incoming_time_ = std::chrono::steady_clock::now();
     });
 
     ESP_LOGI(TAG, "Connecting to endpoint %s", endpoint_.c_str());
     if (!mqtt_->Connect(endpoint_, 8883, client_id_, username_, password_)) {
         ESP_LOGE(TAG, "Failed to connect to endpoint");
-        if (on_network_error_ != nullptr) {
-            on_network_error_(Lang::Strings::SERVER_NOT_CONNECTED);
-        }
+        SetError(Lang::Strings::SERVER_NOT_CONNECTED);
         return false;
     }
 
@@ -100,16 +100,16 @@ bool MqttProtocol::StartMqttClient() {
     return true;
 }
 
-void MqttProtocol::SendText(const std::string& text) {
+bool MqttProtocol::SendText(const std::string& text) {
     if (publish_topic_.empty()) {
-        return;
+        return false;
     }
     if (!mqtt_->Publish(publish_topic_, text)) {
-        ESP_LOGE(TAG, "Failed to publish message");
-        if (on_network_error_ != nullptr) {
-            on_network_error_(Lang::Strings::SERVER_ERROR);
-        }
+        ESP_LOGE(TAG, "Failed to publish message: %s", text.c_str());
+        SetError(Lang::Strings::SERVER_ERROR);
+        return false;
     }
+    return true;
 }
 
 void MqttProtocol::SendAudio(const std::vector<uint8_t>& data) {
@@ -159,11 +159,12 @@ void MqttProtocol::CloseAudioChannel() {
 bool MqttProtocol::OpenAudioChannel() {
     if (mqtt_ == nullptr || !mqtt_->IsConnected()) {
         ESP_LOGI(TAG, "MQTT is not connected, try to connect now");
-        if (!StartMqttClient()) {
+        if (!StartMqttClient(true)) {
             return false;
         }
     }
 
+    error_occurred_ = false;
     session_id_ = "";
     xEventGroupClearBits(event_group_handle_, MQTT_PROTOCOL_SERVER_HELLO_EVENT);
 
@@ -175,15 +176,15 @@ bool MqttProtocol::OpenAudioChannel() {
     message += "\"audio_params\":{";
     message += "\"format\":\"opus\", \"sample_rate\":16000, \"channels\":1, \"frame_duration\":" + std::to_string(OPUS_FRAME_DURATION_MS);
     message += "}}";
-    SendText(message);
+    if (!SendText(message)) {
+        return false;
+    }
 
     // 等待服务器响应
     EventBits_t bits = xEventGroupWaitBits(event_group_handle_, MQTT_PROTOCOL_SERVER_HELLO_EVENT, pdTRUE, pdFALSE, pdMS_TO_TICKS(10000));
     if (!(bits & MQTT_PROTOCOL_SERVER_HELLO_EVENT)) {
         ESP_LOGE(TAG, "Failed to receive server hello");
-        if (on_network_error_ != nullptr) {
-            on_network_error_(Lang::Strings::SERVER_TIMEOUT);
-        }
+        SetError(Lang::Strings::SERVER_TIMEOUT);
         return false;
     }
 
@@ -226,6 +227,7 @@ bool MqttProtocol::OpenAudioChannel() {
             on_incoming_audio_(std::move(decrypted));
         }
         remote_sequence_ = sequence;
+        last_incoming_time_ = std::chrono::steady_clock::now();
     });
 
     udp_->Connect(udp_server_, udp_port_);
@@ -255,6 +257,10 @@ void MqttProtocol::ParseServerHello(const cJSON* root) {
         auto sample_rate = cJSON_GetObjectItem(audio_params, "sample_rate");
         if (sample_rate != NULL) {
             server_sample_rate_ = sample_rate->valueint;
+        }
+        auto frame_duration = cJSON_GetObjectItem(audio_params, "frame_duration");
+        if (frame_duration != NULL) {
+            server_frame_duration_ = frame_duration->valueint;
         }
     }
 
@@ -298,5 +304,5 @@ std::string MqttProtocol::DecodeHexString(const std::string& hex_string) {
 }
 
 bool MqttProtocol::IsAudioChannelOpened() const {
-    return udp_ != nullptr;
+    return udp_ != nullptr && !error_occurred_ && !IsTimeout();
 }
