@@ -71,6 +71,20 @@ Http* Ml307Board::CreateHttp() {
     return new Ml307Http(modem_);
 }
 
+// 修改 ML307 开发板的传输方式选择逻辑  herry修改 
+/* WebSocket* Ml307Board::CreateWebSocket() {
+    //std::string url = CONFIG_WEBSOCKET_URL;
+    
+    // 添加协议判断逻辑
+    if (url.find("wss://") == 0) {
+        ESP_LOGI(TAG, "Using SSL transport for ML307");
+        return new WebSocket(new Ml307SslTransport(modem_, 0));
+    } else {
+        ESP_LOGI(TAG, "Using TCP transport for ML307"); 
+        //return new WebSocket(new Ml307TcpTransport(modem_)); // 需要实现 TCP 传输类
+    }
+} */
+
 WebSocket* Ml307Board::CreateWebSocket() {
     return new WebSocket(new Ml307SslTransport(modem_, 0));
 }

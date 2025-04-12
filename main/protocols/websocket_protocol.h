@@ -17,9 +17,11 @@ public:
 
     void Start() override;
     void SendAudio(const std::vector<uint8_t>& data) override;
-    bool OpenAudioChannel() override;
+    bool  override;
     void CloseAudioChannel() override;
     bool IsAudioChannelOpened() const override;
+
+    bool OpenAudioChannel() override;//  herry添加
 
 private:
     EventGroupHandle_t event_group_handle_;

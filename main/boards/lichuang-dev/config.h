@@ -38,4 +38,7 @@
 #define DISPLAY_BACKLIGHT_OUTPUT_INVERT true
 
 
+#define ML307_RX_PIN GPIO_NUM_18  // herry 修改
+#define ML307_TX_PIN GPIO_NUM_17
+
 #endif // _BOARD_CONFIG_H_

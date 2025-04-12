@@ -239,7 +239,7 @@ void Application::ToggleChatState() {
 
         if (device_state_ == kDeviceStateIdle) {
             SetDeviceState(kDeviceStateConnecting);
-            if (!protocol_->OpenAudioChannel()) {
+            if (!protocol_->OpenAudioChannel()) {   //如果音频通道打开失败
                 SetDeviceState(kDeviceStateIdle);
                 return;
             }
@@ -298,10 +298,10 @@ void Application::StopListening() {
 }
 
 void Application::Start() {
-    auto& board = Board::GetInstance();
+    auto& board = Board::GetInstance(); //获取板级信息 
     SetDeviceState(kDeviceStateStarting);
 
-    /* Setup the display */
+    /* Setup the display */  //硬件初始化  显示部分和音频部分
     auto display = board.GetDisplay();
 
     /* Setup the audio codec */
@@ -335,7 +335,7 @@ void Application::Start() {
     });
     codec->Start();
 
-    /* Start the main loop */
+    /* Start the main loop */  //主循环的任务 
     xTaskCreate([](void* arg) {
         Application* app = (Application*)arg;
         app->MainLoop();
@@ -343,7 +343,7 @@ void Application::Start() {
     }, "main_loop", 4096 * 2, this, 2, nullptr);
 
     /* Wait for the network to be ready */
-    board.StartNetwork();
+    board.StartNetwork();   // 网络初始化 
 
     // Initialize the protocol
     display->SetStatus(Lang::Strings::LOADING_PROTOCOL);

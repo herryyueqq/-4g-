@@ -1,0 +1,42 @@
+# Additional clean files
+cmake_minimum_required(VERSION 3.16)
+
+if("${CONFIG}" STREQUAL "" OR "${CONFIG}" STREQUAL "")
+  file(REMOVE_RECURSE
+  "0.p3.S"
+  "1.p3.S"
+  "2.p3.S"
+  "3.p3.S"
+  "4.p3.S"
+  "5.p3.S"
+  "6.p3.S"
+  "7.p3.S"
+  "8.p3.S"
+  "9.p3.S"
+  "activation.p3.S"
+  "bootloader\\bootloader.bin"
+  "bootloader\\bootloader.elf"
+  "bootloader\\bootloader.map"
+  "config\\sdkconfig.cmake"
+  "config\\sdkconfig.h"
+  "err_pin.p3.S"
+  "err_reg.p3.S"
+  "esp-idf\\esptool_py\\flasher_args.json.in"
+  "esp-idf\\mbedtls\\x509_crt_bundle"
+  "flash_app_args"
+  "flash_bootloader_args"
+  "flash_project_args"
+  "flasher_args.json"
+  "ldgen_libraries"
+  "ldgen_libraries.in"
+  "project_elf_src_esp32s3.c"
+  "upgrade.p3.S"
+  "welcome.p3.S"
+  "wifi_configuration.html.S"
+  "wifi_configuration_done.html.S"
+  "wificonfig.p3.S"
+  "x509_crt_bundle.S"
+  "xiaozhi.bin"
+  "xiaozhi.map"
+  )
+endif()

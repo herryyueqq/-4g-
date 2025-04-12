@@ -42,9 +42,9 @@ enum DeviceState {
 
 #define OPUS_FRAME_DURATION_MS 60
 
-class Application {
+class Application {   // 创建一个类  一种数据结构 包含 函数和数据
 public:
-    static Application& GetInstance() {
+    static Application& GetInstance() {   //创建一个静态成员函数 一个类的实例 只会初始化一次
         static Application instance;
         return instance;
     }
@@ -52,7 +52,7 @@ public:
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
 
-    void Start();
+    void Start();  //普通的成员函数 
     DeviceState GetDeviceState() const { return device_state_; }
     bool IsVoiceDetected() const { return voice_detected_; }
     void Schedule(std::function<void()> callback);

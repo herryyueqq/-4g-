@@ -1,4 +1,7 @@
 #include "wifi_board.h"
+
+#include "ml307_board.h"
+
 #include "audio_codecs/box_audio_codec.h"
 #include "display/lcd_display.h"
 #include "application.h"
@@ -33,7 +36,7 @@ public:
 };
 
 
-class LichuangDevBoard : public WifiBoard {
+class LichuangDevBoard : public Ml307Board {    //继承4g模块的属性  herry修改
 private:
     i2c_master_bus_handle_t i2c_bus_;
     i2c_master_dev_handle_t pca9557_handle_;
@@ -76,9 +79,10 @@ private:
         boot_button_.OnClick([this]() {
             auto& app = Application::GetInstance();
             if (app.GetDeviceState() == kDeviceStateStarting && !WifiStation::GetInstance().IsConnected()) {
-                ResetWifiConfiguration();
+                //ResetWifiConfiguration();   //herry 注释掉
             }
-        });
+            app.ToggleChatState();//添加 实现连续对话的功能  Herry添加
+        });      
         boot_button_.OnPressDown([this]() {
             Application::GetInstance().StartListening();
         });
@@ -134,13 +138,15 @@ private:
     }
 
 public:
-    LichuangDevBoard() : boot_button_(BOOT_BUTTON_GPIO) {
+    LichuangDevBoard() : Ml307Board(ML307_TX_PIN, ML307_RX_PIN, 4096),// 初始化下串口引脚 和缓冲区
+         boot_button_(BOOT_BUTTON_GPIO) 
+        {
         InitializeI2c();
         InitializeSpi();
         InitializeSt7789Display();
         InitializeButtons();
         InitializeIot();
-    }
+        }
 
     virtual AudioCodec* GetAudioCodec() override {
         static BoxAudioCodec audio_codec(

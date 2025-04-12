@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+E:/eps32/demo/xiaozhi/xiaozhi-esp32/CMakeFiles/bootloader
+E:/eps32/demo/xiaozhi/xiaozhi-esp32/CMakeFiles/bootloader.rule
+E:/eps32/demo/xiaozhi/xiaozhi-esp32/CMakeFiles/bootloader-complete.rule
+E:/eps32/demo/xiaozhi/xiaozhi-esp32/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
+E:/eps32/demo/xiaozhi/xiaozhi-esp32/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+E:/eps32/demo/xiaozhi/xiaozhi-esp32/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+E:/eps32/demo/xiaozhi/xiaozhi-esp32/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+E:/eps32/demo/xiaozhi/xiaozhi-esp32/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+E:/eps32/demo/xiaozhi/xiaozhi-esp32/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+E:/eps32/demo/xiaozhi/xiaozhi-esp32/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule
