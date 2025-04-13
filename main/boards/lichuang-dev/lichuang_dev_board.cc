@@ -81,7 +81,13 @@ private:
             if (app.GetDeviceState() == kDeviceStateStarting && !WifiStation::GetInstance().IsConnected()) {
                 //ResetWifiConfiguration();   //herry 注释掉
             }
-            app.ToggleChatState();
+            app.ToggleChatState();//添加 实现连续对话的功能  Herry添加
+        });      
+        boot_button_.OnPressDown([this]() {
+            Application::GetInstance().StartListening();
+        });
+        boot_button_.OnPressUp([this]() {
+            Application::GetInstance().StopListening();
         });
     }
 
